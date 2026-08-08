@@ -1,0 +1,13 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:mandate_guardian}
+    username: ${POSTGRES_USER:mandate_guardian}
+    password: ${POSTGRES_PASSWORD:local-development-only}
+
+mandate-guardian:
+  local-security:
+    username: ${LOCAL_SECURITY_USERNAME:local-developer}
+    password: ${LOCAL_SECURITY_PASSWORD:local-development-only}
