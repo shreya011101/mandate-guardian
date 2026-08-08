@@ -6,7 +6,11 @@ import com.mandateguardian.commitments.application.CreateMonthlyCommitmentComman
 import com.mandateguardian.commitments.application.CreateMonthlyCommitmentService;
 import com.mandateguardian.commitments.application.ListMonthlyCommitmentsService;
 import com.mandateguardian.commitments.application.MonthlyCommitment;
+import com.mandateguardian.commitments.application.ApplyPaymentOccurrenceActionCommand;
+import com.mandateguardian.commitments.application.ApplyPaymentOccurrenceActionService;
 import com.mandateguardian.commitments.domain.CommitmentCategory;
+import com.mandateguardian.commitments.domain.PaymentOccurrenceAction;
+import com.mandateguardian.commitments.domain.PaymentOccurrenceStatus;
 import com.mandateguardian.commitments.domain.PaymentMode;
 import com.mandateguardian.commitments.infrastructure.persistence.CommitmentRepository;
 import com.mandateguardian.commitments.infrastructure.persistence.PaymentOccurrenceRepository;
@@ -34,6 +38,9 @@ class MandateGuardianApplicationTests {
 
     @Autowired
     private ListMonthlyCommitmentsService listMonthlyCommitmentsService;
+
+    @Autowired
+    private ApplyPaymentOccurrenceActionService applyPaymentOccurrenceActionService;
 
     @Autowired
     private CommitmentRepository commitmentRepository;
@@ -74,10 +81,22 @@ class MandateGuardianApplicationTests {
                 created.expectedAmountMinor(),
                 created.currency(),
                 true));
+        var paymentAction = applyPaymentOccurrenceActionService.apply(new ApplyPaymentOccurrenceActionCommand(
+                created.occurrenceId(),
+                PaymentOccurrenceAction.MARK_PAID,
+                null));
+        var replayedPaymentAction = applyPaymentOccurrenceActionService.apply(new ApplyPaymentOccurrenceActionCommand(
+                created.occurrenceId(),
+                PaymentOccurrenceAction.MARK_PAID,
+                null));
+
+        assertThat(paymentAction.status()).isEqualTo(PaymentOccurrenceStatus.PAID);
+        assertThat(paymentAction.changed()).isTrue();
+        assertThat(replayedPaymentAction.changed()).isFalse();
         assertThat(commitmentRepository.count()).isEqualTo(1);
         assertThat(paymentOccurrenceRepository.count()).isEqualTo(1);
-        assertThat(outboxEventRepository.count()).isEqualTo(1);
-        assertThat(auditEventRepository.count()).isEqualTo(1);
+        assertThat(outboxEventRepository.count()).isEqualTo(2);
+        assertThat(auditEventRepository.count()).isEqualTo(2);
         assertThat(idempotencyKeyRepository.count()).isEqualTo(1);
         assertThat(listMonthlyCommitmentsService.list(YearMonth.from(created.dueDate())))
                 .containsExactly(new MonthlyCommitment(
@@ -89,6 +108,6 @@ class MandateGuardianApplicationTests {
                         64900,
                         "INR",
                         PaymentMode.AUTO_DEBIT,
-                        com.mandateguardian.commitments.domain.PaymentOccurrenceStatus.PLANNED));
+                        PaymentOccurrenceStatus.PAID));
     }
 }

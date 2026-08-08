@@ -1,5 +1,7 @@
 package com.mandateguardian.commitments.infrastructure.persistence;
 
+import com.mandateguardian.commitments.domain.InvalidPaymentOccurrenceActionException;
+import com.mandateguardian.commitments.domain.PaymentOccurrenceAction;
 import com.mandateguardian.commitments.domain.PaymentOccurrenceStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -7,6 +9,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,6 +49,9 @@ public class PaymentOccurrenceEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Version
+    private long version;
+
     protected PaymentOccurrenceEntity() {
     }
 
@@ -84,5 +90,60 @@ public class PaymentOccurrenceEntity {
 
     public String getCurrency() {
         return currency;
+    }
+
+    public LocalDate getOriginalDueDate() {
+        return originalDueDate;
+    }
+
+    public PaymentOccurrenceStatus getStatus() {
+        return status;
+    }
+
+    public boolean applyAction(PaymentOccurrenceAction action, LocalDate postponedDueDate, Instant now) {
+        return switch (action) {
+            case MARK_PAID -> transitionTo(PaymentOccurrenceStatus.PAID, action, now);
+            case SKIP -> transitionTo(PaymentOccurrenceStatus.SKIPPED, action, now);
+            case POSTPONE -> postpone(postponedDueDate, now);
+        };
+    }
+
+    private boolean transitionTo(
+            PaymentOccurrenceStatus target,
+            PaymentOccurrenceAction action,
+            Instant now) {
+        if (status == target) {
+            return false;
+        }
+        requireActionable(action);
+        status = target;
+        updatedAt = now;
+        return true;
+    }
+
+    private boolean postpone(LocalDate postponedDueDate, Instant now) {
+        if (postponedDueDate == null) {
+            throw new InvalidPaymentOccurrenceActionException(
+                    "A postponed due date is required when postponing a payment occurrence");
+        }
+        if (status == PaymentOccurrenceStatus.POSTPONED && dueDate.equals(postponedDueDate)) {
+            return false;
+        }
+        if (!postponedDueDate.isAfter(dueDate)) {
+            throw new InvalidPaymentOccurrenceActionException(
+                    "A postponed due date must be after the current due date");
+        }
+        requireActionable(PaymentOccurrenceAction.POSTPONE);
+        dueDate = postponedDueDate;
+        status = PaymentOccurrenceStatus.POSTPONED;
+        updatedAt = now;
+        return true;
+    }
+
+    private void requireActionable(PaymentOccurrenceAction action) {
+        if (status == PaymentOccurrenceStatus.PAID || status == PaymentOccurrenceStatus.SKIPPED) {
+            throw new InvalidPaymentOccurrenceActionException(
+                    "Cannot apply " + action + " to a " + status + " payment occurrence");
+        }
     }
 }

@@ -1,6 +1,8 @@
 package com.mandateguardian.shared.web;
 
 import com.mandateguardian.commitments.application.IdempotencyConflictException;
+import com.mandateguardian.commitments.application.PaymentOccurrenceNotFoundException;
+import com.mandateguardian.commitments.domain.InvalidPaymentOccurrenceActionException;
 import com.mandateguardian.identity.application.UserNotFoundException;
 import java.time.DateTimeException;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,16 @@ class ApiExceptionHandler {
     @ExceptionHandler(IdempotencyConflictException.class)
     ProblemDetail idempotencyConflict(IdempotencyConflictException exception) {
         return problem(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPaymentOccurrenceActionException.class)
+    ProblemDetail invalidPaymentOccurrenceAction(InvalidPaymentOccurrenceActionException exception) {
+        return problem(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(PaymentOccurrenceNotFoundException.class)
+    ProblemDetail paymentOccurrenceNotFound(PaymentOccurrenceNotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
     private ProblemDetail problem(HttpStatus status, String detail) {

@@ -13,6 +13,17 @@ public interface PaymentOccurrenceRepository extends JpaRepository<PaymentOccurr
     Optional<PaymentOccurrenceEntity> findByCommitmentIdAndDueDate(UUID commitmentId, LocalDate dueDate);
 
     @Query("""
+            select occurrence
+            from PaymentOccurrenceEntity occurrence
+            join CommitmentEntity commitment on commitment.id = occurrence.commitmentId
+            where occurrence.id = :occurrenceId
+              and commitment.userId = :userId
+            """)
+    Optional<PaymentOccurrenceEntity> findByIdAndUserId(
+            @Param("occurrenceId") UUID occurrenceId,
+            @Param("userId") UUID userId);
+
+    @Query("""
             select new com.mandateguardian.commitments.infrastructure.persistence.MonthlyCommitmentRow(
                 commitment.id,
                 occurrence.id,

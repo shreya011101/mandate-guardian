@@ -104,6 +104,35 @@ Sending the same request with the same idempotency key returns the original
 commitment rather than creating another one. Non-local profiles deny all API
 requests until a production identity-provider adapter is added.
 
+## Act on a payment occurrence
+
+Payment occurrences are changed through explicit business actions instead of
+accepting an arbitrary status value. This preserves valid lifecycle
+transitions, produces an audit event, and sends a transactional outbox event
+only when the state changed.
+
+Mark the occurrence as paid:
+
+```bash
+curl --include --user local-developer:local-development-only \
+  --request POST http://localhost:8080/api/v1/payment-occurrences/<occurrence-id>/actions \
+  --header 'Content-Type: application/json' \
+  --data '{"action":"MARK_PAID"}'
+```
+
+To move a bill to a later date, provide an explicit later date:
+
+```bash
+curl --include --user local-developer:local-development-only \
+  --request POST http://localhost:8080/api/v1/payment-occurrences/<occurrence-id>/actions \
+  --header 'Content-Type: application/json' \
+  --data '{"action":"POSTPONE","postponedDueDate":"2026-08-20"}'
+```
+
+`MARK_PAID`, `SKIP`, and `POSTPONE` are supported. An exact retry returns the
+current state with `changed: false`; it does not create a duplicate audit or
+outbox event.
+
 ## Repository conventions
 
 - Schema changes are Flyway migrations under `src/main/resources/db/migration`.
